@@ -1,6 +1,8 @@
-import React,{useState, useEffect} from 'react';
-import{db} from './firebase'
+import React from 'react';
 import useCollection from './useCollection';
+import useDocWithCache from './useDocWithCache'
+import formateDate from 'date-fns/format'
+import isSameDay from 'date-fns/is_same_day'
 
 
 
@@ -19,9 +21,9 @@ function Messages({channelId}) {
 
       {messages.map((message, index) => {
         const previous = messages[index-1];
-        const showDay = false;
-        console.log(message)
-        const showAvatar = !previous || message.user.id !== previous.user.id;
+        const showDay = shouldShowDay(previous, message);
+        
+        const showAvatar = shouldShowAvatar(previous, message);
 
         return showAvatar ? (
           <FirstMessageFromUser
@@ -42,37 +44,20 @@ function Messages({channelId}) {
 }
 
 
-function useDoc(path){
-  const [doc, setDoc] = useState();
-
-  useEffect(()=>{
-    let stillMounted = true;
-
-   db.doc(path).get().then(doc => {
-     if(stillMounted){
-      setDoc({
-        ...doc.data(),
-        id: doc.id
-      })
-     }
-     
-    })
-    return ()=>{
-      stillMounted = false;
-    }
-  }, [path])
-  return doc;
-}
 
 function FirstMessageFromUser({message, showDay}){
-  const author = useDoc(message.user.path);
+  const author = useDocWithCache(message.user.path);
 
   return (
     <div >
        {showDay && (
              <div className="Day">
                  <div className="DayLine" />
-                 <div className="DayText">12/6/2018</div>
+                 <div className="DayText">
+                   {new Date(
+                     message.createdAt.seconds * 1000 
+                   ).toLocaleDateString()}
+                 </div>
                   <div className="DayLine" />
                </div>
        )}
@@ -90,7 +75,11 @@ function FirstMessageFromUser({message, showDay}){
                 <span className="UserName">
                  {author && author.displayName}
                 </span>{" "}
-                <span className="TimeStamp">3:37 PM</span>
+                <span className="TimeStamp">
+                 {formateDate(
+                   message.createdAt.seconds * 1000, "h:mm A"
+                 ) }
+                </span>
               </div>
               <div className="MessageContent">{message.text}</div>
             </div>
@@ -100,4 +89,29 @@ function FirstMessageFromUser({message, showDay}){
   )
 }
 
+function shouldShowAvatar(previous, message){
+  const isFirst = !previous;
+  if(isFirst){
+    return true;
+  }
+
+  const differentUser = message.user.id !== previous.user.id;
+  if(differentUser){
+    return true;
+  }
+const hasBeenAwhile = message.createdAt.seconds - previous.createdAt.seconds > 180;
+return hasBeenAwhile;
+ };
+
+ function shouldShowDay(previous, message){
+  const isFirst = !previous;
+  if(isFirst){
+    return true;
+  }
+  const isNewDay = !isSameDay(
+    previous.createdAt.seconds * 1000,
+    message.createdAt.seconds * 1000
+  )
+  return isNewDay;
+ }
 export default Messages;
