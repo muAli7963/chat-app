@@ -22,7 +22,7 @@ function ChatInputBox({user, channelId}) {
       }
     
     className="ChatInputBox">
-      <input className="ChatInput" placeholder="Message #general" />
+      <input className="ChatInput" placeholder="Message" />
     </form>
   );
 }
